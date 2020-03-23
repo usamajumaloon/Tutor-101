@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -6,9 +7,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text;
 using Tutor101.Data;
 using Tutor101.Data.Entities;
+using Tutor101.Initializers;
 
 namespace Tutor101
 {
@@ -33,6 +37,30 @@ namespace Tutor101
             services.AddIdentity<User, IdentityRole>()
                         .AddRoles<IdentityRole>()
                         .AddEntityFrameworkStores<AppDbContext>();
+
+            //JWT
+            services.AddAuthentication()
+               .AddJwtBearer(cfg =>
+               {
+                   cfg.TokenValidationParameters = new TokenValidationParameters()
+                   {
+                       ValidIssuer = Configuration["Tokens:Issuer"],
+                       ValidAudience = Configuration["Tokens:Audience"],
+                       IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["Tokens:Key"]))
+                   };
+               });
+
+            //AutoMapper
+            var mapping = new MapperConfiguration(mc =>
+            {
+                mc.AddProfile(new AutoMapperConfig());
+            });
+
+            IMapper mapper = mapping.CreateMapper();
+            services.AddSingleton(mapper);
+
+            //Dependency Injection
+            ServiceInjector.InjectServices(services);
 
             services.AddMvc(options => options.EnableEndpointRouting = false);
 
@@ -79,7 +107,7 @@ namespace Tutor101
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, UserManager<User> userManager)
         {
             if (env.IsDevelopment())
             {
@@ -92,8 +120,10 @@ namespace Tutor101
                 app.UseHsts();
             }
 
+
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+            DefaultInitializer.SeedUsers(userManager);
             if (!env.IsDevelopment())
             {
                 app.UseSpaStaticFiles();
@@ -108,6 +138,9 @@ namespace Tutor101
             });
 
             app.UseRouting();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {

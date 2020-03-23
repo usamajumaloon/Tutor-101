@@ -18,7 +18,7 @@ namespace Tutor101.Data.Entities
         public string EditedById { get; set; }
         public Enums.RecordState RecordState { get; set; }
 
-        protected User()
+        public User()
         {
             RecordState = Enums.RecordState.Active;
             CreatedOn = DateTime.UtcNow;
